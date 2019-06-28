@@ -9,10 +9,9 @@ for a starting point for this code.
 Provided under MIT License
 """
 from .version import __version__
-import keras
-from keras import backend as K
-from keras.layers import Dense
-from keras.engine.topology import Layer
+from tensorflow import keras
+from tensorflow.keras import backend as K
+from tensorflow.keras.layers import Dense, Layer
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -48,8 +47,8 @@ class MDN(Layer):
         self.mdn_mus.build(input_shape)
         self.mdn_sigmas.build(input_shape)
         self.mdn_pi.build(input_shape)
-        self.trainable_weights = self.mdn_mus.trainable_weights + self.mdn_sigmas.trainable_weights + self.mdn_pi.trainable_weights
-        self.non_trainable_weights = self.mdn_mus.non_trainable_weights + self.mdn_sigmas.non_trainable_weights + self.mdn_pi.non_trainable_weights
+        self._trainable_weights = self.mdn_mus.trainable_weights + self.mdn_sigmas.trainable_weights + self.mdn_pi.trainable_weights
+        self._non_trainable_weights = self.mdn_mus.non_trainable_weights + self.mdn_sigmas.non_trainable_weights + self.mdn_pi.non_trainable_weights
         super(MDN, self).build(input_shape)
 
     def call(self, x, mask=None):
