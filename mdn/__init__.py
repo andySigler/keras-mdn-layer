@@ -13,7 +13,7 @@ from .version import __version__
 import numpy as np
 
 import tensorflow as tf
-from tensorflow.compat.v1 import keras
+from tensorflow.compat.v2 import keras
 
 from tensorflow_probability import distributions as tfd
 
