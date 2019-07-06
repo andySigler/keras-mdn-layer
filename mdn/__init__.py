@@ -22,11 +22,14 @@ def elu_plus_one_plus_epsilon(x):
     return tf.keras.backend.elu(x) + 1 + tf.keras.backend.epsilon()
 
 
-def create_mdn_layers(input_layer, output_dim, num_mixes):
-    mdn_mus = tf.keras.layers.Dense(output_dim * num_mixes)(input_layer)
+def create_mdn_layers(input_layer, output_dim, num_mixes, mu_activation=None):
+    mdn_mus = tf.keras.layers.Dense(
+        output_dim * num_mixes,
+        activation=mu_activation)(input_layer)  # optional activation for means
     mdn_sigmas = tf.keras.layers.Dense(
         output_dim * num_mixes,
         activation=elu_plus_one_plus_epsilon)(input_layer)
+    # softmax is applied to pi when sampling, so no need for activation here
     mdn_pi = tf.keras.layers.Dense(num_mixes)(input_layer)
     return tf.keras.layers.concatenate([mdn_mus, mdn_sigmas, mdn_pi])
 
