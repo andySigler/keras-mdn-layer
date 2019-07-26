@@ -41,13 +41,11 @@ def get_mixture_loss_func(output_dim, num_mixes):
         # Reshape inputs in case this is used in a TimeDistribued layer
         y_pred = tf.reshape(
             y_pred,
-            [-1, (2 * num_mixes * output_dim) + num_mixes],
-            name='reshape_ypreds'
+            [-1, (2 * num_mixes * output_dim) + num_mixes]
         )
         y_true = tf.reshape(
             y_true,
-            [-1, output_dim],
-            name='reshape_ytrue'
+            [-1, output_dim]
         )
         # Split the inputs into paramaters
         out_mu, out_sigma, out_pi = tf.split(
@@ -57,8 +55,7 @@ def get_mixture_loss_func(output_dim, num_mixes):
                 num_mixes * output_dim,
                 num_mixes
             ],
-            axis=-1,
-            name='mdn_coef_split'
+            axis=-1
         )
         # Construct the mixture models
         cat = tfd.Categorical(logits=out_pi)
@@ -74,8 +71,7 @@ def get_mixture_loss_func(output_dim, num_mixes):
         return loss
 
     # Actually return the loss_func
-    with tf.name_scope('MDN'):
-        return loss_func
+    return loss_func
 
 
 def get_mixture_sampling_fun(output_dim, num_mixes):
@@ -87,8 +83,7 @@ def get_mixture_sampling_fun(output_dim, num_mixes):
         # Reshape inputs in case this is used in a TimeDistribued layer
         y_pred = tf.reshape(
             y_pred,
-            [-1, (2 * num_mixes * output_dim) + num_mixes],
-            name='reshape_ypreds'
+            [-1, (2 * num_mixes * output_dim) + num_mixes]
         )
         out_mu, out_sigma, out_pi = tf.split(
             y_pred,
@@ -97,8 +92,7 @@ def get_mixture_sampling_fun(output_dim, num_mixes):
                 num_mixes * output_dim,
                 num_mixes
             ],
-            axis=1,
-            name='mdn_coef_split'
+            axis=1
         )
         cat = tfd.Categorical(logits=out_pi)
         component_splits = [output_dim] * num_mixes
@@ -114,8 +108,7 @@ def get_mixture_sampling_fun(output_dim, num_mixes):
         return samp
 
     # Actually return the loss_func
-    with tf.name_scope('MDNLayer'):
-        return sampling_func
+    return sampling_func
 
 
 def get_mixture_mse_accuracy(output_dim, num_mixes):
@@ -126,13 +119,11 @@ def get_mixture_mse_accuracy(output_dim, num_mixes):
         # Reshape inputs in case this is used in a TimeDistribued layer
         y_pred = tf.reshape(
             y_pred,
-            [-1, (2 * num_mixes * output_dim) + num_mixes],
-            name='reshape_ypreds'
+            [-1, (2 * num_mixes * output_dim) + num_mixes]
         )
         y_true = tf.reshape(
             y_true,
-            [-1, output_dim],
-            name='reshape_ytrue'
+            [-1, output_dim]
         )
         out_mu, out_sigma, out_pi = tf.split(
             y_pred,
@@ -141,8 +132,7 @@ def get_mixture_mse_accuracy(output_dim, num_mixes):
                 num_mixes * output_dim,
                 num_mixes
             ],
-            axis=1,
-            name='mdn_coef_split'
+            axis=1
         )
         cat = tfd.Categorical(logits=out_pi)
         component_splits = [output_dim] * num_mixes
@@ -159,8 +149,7 @@ def get_mixture_mse_accuracy(output_dim, num_mixes):
         return mse
 
     # Actually return the loss_func
-    with tf.name_scope('MDNLayer'):
-        return mse_func
+    return mse_func
 
 
 def split_mixture_params(params, output_dim, num_mixes):
