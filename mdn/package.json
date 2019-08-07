@@ -1,0 +1,11 @@
+{
+  "name": "keras-mdn-layer",
+  "version": "1.0.0",
+  "description": "Functions for sampling from MDN output layer",
+  "author": "andySigler",
+  "license": "ISC",
+  "dependencies": {
+    "@tensorflow/tfjs": "^1.2.2",
+    "multivariate-normal": "^0.1.1"
+  }
+}
