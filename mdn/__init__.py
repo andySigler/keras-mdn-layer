@@ -22,66 +22,16 @@ def elu_plus_one_plus_epsilon(x):
     return tf.keras.backend.elu(x) + 1 + tf.keras.backend.epsilon()
 
 
-class MDN(tf.keras.layers.Layer):
-    """A Mixture Density Network Layer for Keras.
-    This layer has a few tricks to avoid NaNs in the loss function when training:
-        - Activation for variances is ELU + 1 + 1e-8 (to avoid very small values)
-        - Mixture weights (pi) are trained in as logits, not in the softmax space.
-
-    A loss function needs to be constructed with the same output dimension and number of mixtures.
-    A sampling function is also provided to sample from distribution parametrised by the MDN outputs.
-    """
-
-    def __init__(self, output_dimension, num_mixtures, **kwargs):
-        self.output_dim = output_dimension
-        self.num_mix = num_mixtures
-        with tf.name_scope('MDN'):
-            self.mdn_mus = tf.keras.layers.Dense(
-                self.num_mix * self.output_dim,
-                name='mdn_mus'
-            )  # mix*output vals, no activation
-            self.mdn_sigmas = tf.keras.layers.Dense(
-                self.num_mix * self.output_dim,
-                activation=elu_plus_one_plus_epsilon,
-                name='mdn_sigmas'
-            )  # mix*output vals exp activation
-            self.mdn_pi = tf.keras.layers.Dense(
-                self.num_mix,
-                name='mdn_pi'
-            )  # mix vals, logits
-        super(MDN, self).__init__(**kwargs)
-
-    def build(self, input_shape):
-        self.mdn_mus.build(input_shape)
-        self.mdn_sigmas.build(input_shape)
-        self.mdn_pi.build(input_shape)
-        self._trainable_weights = self.mdn_mus.trainable_weights + self.mdn_sigmas.trainable_weights + self.mdn_pi.trainable_weights
-        self._non_trainable_weights = self.mdn_mus.non_trainable_weights + self.mdn_sigmas.non_trainable_weights + self.mdn_pi.non_trainable_weights
-        super(MDN, self).build(input_shape)
-
-    def call(self, x, mask=None):
-        with tf.name_scope('MDN'):
-            mdn_out = tf.keras.layers.concatenate(
-                [
-                    self.mdn_mus(x),
-                    self.mdn_sigmas(x),
-                    self.mdn_pi(x)
-                ],
-                name='mdn_outputs'
-            )
-        return mdn_out
-
-    def compute_output_shape(self, input_shape):
-        """Returns output shape, showing the number of mixture parameters."""
-        return (input_shape[0], (2 * self.output_dim * self.num_mix) + self.num_mix)
-
-    def get_config(self):
-        config = {
-            "output_dimension": self.output_dim,
-            "num_mixtures": self.num_mix
-        }
-        base_config = super(MDN, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+def create_mdn_layers(input_layer, output_dim, num_mixes, mu_activation=None):
+    mdn_mus = tf.keras.layers.Dense(
+        output_dim * num_mixes,
+        activation=mu_activation)(input_layer)  # optional activation for means
+    mdn_sigmas = tf.keras.layers.Dense(
+        output_dim * num_mixes,
+        activation=elu_plus_one_plus_epsilon)(input_layer)
+    # softmax is applied to pi when sampling, so no need for activation here
+    mdn_pi = tf.keras.layers.Dense(num_mixes)(input_layer)
+    return tf.keras.layers.concatenate([mdn_mus, mdn_sigmas, mdn_pi])
 
 
 def get_mixture_loss_func(output_dim, num_mixes):
@@ -91,13 +41,11 @@ def get_mixture_loss_func(output_dim, num_mixes):
         # Reshape inputs in case this is used in a TimeDistribued layer
         y_pred = tf.reshape(
             y_pred,
-            [-1, (2 * num_mixes * output_dim) + num_mixes],
-            name='reshape_ypreds'
+            [-1, (2 * num_mixes * output_dim) + num_mixes]
         )
         y_true = tf.reshape(
             y_true,
-            [-1, output_dim],
-            name='reshape_ytrue'
+            [-1, output_dim]
         )
         # Split the inputs into paramaters
         out_mu, out_sigma, out_pi = tf.split(
@@ -107,8 +55,7 @@ def get_mixture_loss_func(output_dim, num_mixes):
                 num_mixes * output_dim,
                 num_mixes
             ],
-            axis=-1,
-            name='mdn_coef_split'
+            axis=-1
         )
         # Construct the mixture models
         cat = tfd.Categorical(logits=out_pi)
@@ -124,8 +71,7 @@ def get_mixture_loss_func(output_dim, num_mixes):
         return loss
 
     # Actually return the loss_func
-    with tf.name_scope('MDN'):
-        return loss_func
+    return loss_func
 
 
 def get_mixture_sampling_fun(output_dim, num_mixes):
@@ -137,8 +83,7 @@ def get_mixture_sampling_fun(output_dim, num_mixes):
         # Reshape inputs in case this is used in a TimeDistribued layer
         y_pred = tf.reshape(
             y_pred,
-            [-1, (2 * num_mixes * output_dim) + num_mixes],
-            name='reshape_ypreds'
+            [-1, (2 * num_mixes * output_dim) + num_mixes]
         )
         out_mu, out_sigma, out_pi = tf.split(
             y_pred,
@@ -147,8 +92,7 @@ def get_mixture_sampling_fun(output_dim, num_mixes):
                 num_mixes * output_dim,
                 num_mixes
             ],
-            axis=1,
-            name='mdn_coef_split'
+            axis=1
         )
         cat = tfd.Categorical(logits=out_pi)
         component_splits = [output_dim] * num_mixes
@@ -164,8 +108,7 @@ def get_mixture_sampling_fun(output_dim, num_mixes):
         return samp
 
     # Actually return the loss_func
-    with tf.name_scope('MDNLayer'):
-        return sampling_func
+    return sampling_func
 
 
 def get_mixture_mse_accuracy(output_dim, num_mixes):
@@ -176,13 +119,11 @@ def get_mixture_mse_accuracy(output_dim, num_mixes):
         # Reshape inputs in case this is used in a TimeDistribued layer
         y_pred = tf.reshape(
             y_pred,
-            [-1, (2 * num_mixes * output_dim) + num_mixes],
-            name='reshape_ypreds'
+            [-1, (2 * num_mixes * output_dim) + num_mixes]
         )
         y_true = tf.reshape(
             y_true,
-            [-1, output_dim],
-            name='reshape_ytrue'
+            [-1, output_dim]
         )
         out_mu, out_sigma, out_pi = tf.split(
             y_pred,
@@ -191,8 +132,7 @@ def get_mixture_mse_accuracy(output_dim, num_mixes):
                 num_mixes * output_dim,
                 num_mixes
             ],
-            axis=1,
-            name='mdn_coef_split'
+            axis=1
         )
         cat = tfd.Categorical(logits=out_pi)
         component_splits = [output_dim] * num_mixes
@@ -209,8 +149,7 @@ def get_mixture_mse_accuracy(output_dim, num_mixes):
         return mse
 
     # Actually return the loss_func
-    with tf.name_scope('MDNLayer'):
-        return mse_func
+    return mse_func
 
 
 def split_mixture_params(params, output_dim, num_mixes):
